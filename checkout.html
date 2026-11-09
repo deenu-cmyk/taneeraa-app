@@ -186,8 +186,12 @@ import { signInAnonymously } from "https://www.gstatic.com/firebasejs/12.1.0/fir
 import { collection, doc, getDoc, getDocs, addDoc, setDoc, serverTimestamp, Timestamp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
 
 // Shipping defaults. The admin can change both in Admin Panel -> Settings (saved in Firestore: settings)
-let SHIPPING_FEE = 100;            // standard shipping, in rupees (0 = free shipping for everyone)
-let FREE_SHIPPING_ABOVE = 999;     // free shipping when the amount after discount is above this (0 = charge the fee on every order)
+const DEFAULT_SHIPPING_FEE = 100;
+const DEFAULT_FREE_SHIPPING_ABOVE = 999;
+const MAX_SHIPPING_FEE = 2000;       // FIX: any shipping fee above this is treated as bad data and ignored
+const MAX_FREE_LIMIT = 100000;       // FIX: any free-shipping limit above this is treated as bad data and ignored
+let SHIPPING_FEE = DEFAULT_SHIPPING_FEE;            // standard shipping, in rupees (0 = free shipping for everyone)
+let FREE_SHIPPING_ABOVE = DEFAULT_FREE_SHIPPING_ABOVE; // free shipping when the amount after discount is above this (0 = charge the fee on every order)
 const DELIVERY_DAYS = 5;
 const WHATSAPP = "919538162560";
 // Your Vercel backend (check the exact address in Vercel -> your project -> Overview -> Domains)
@@ -228,28 +232,39 @@ function syncPay() {
 document.querySelectorAll('input[name="pay"]').forEach(r => r.addEventListener("change", syncPay));
 
 /* ---------- shipping amounts set by the admin (Firestore "settings" collection) ---------- */
-// Looks through the settings documents for the shipping charge and the free-shipping limit.
+// FIX: the old version accepted ANY number found in the settings documents (even timestamps, phone numbers
+// or test values), which could make shipping show as ₹63,92,96,11,205.80.
+// Now: only plain numbers are read, fields that look like dates / phones / ids are skipped,
+// and values outside a sensible range are ignored, so the default (₹100 / ₹999) is used instead.
 // A number whose name contains "free", "above", "min", "limit" or "threshold" is the free-shipping limit;
 // any other number whose name (or document name) contains "ship" or "deliver" is the shipping charge.
-// (api/_lib/shop.js uses exactly the same rules, so the website and the server always agree.)
+// NOTE: api/_lib/shop.js must use the same checks so the website and the server always agree.
 async function loadShipping() {
+  // always start from the safe defaults so a bad load can never leave a bad value behind
+  SHIPPING_FEE = DEFAULT_SHIPPING_FEE;
+  FREE_SHIPPING_ABOVE = DEFAULT_FREE_SHIPPING_ABOVE;
   try {
     const snap = await getDocs(collection(db, "settings"));
     let fee = null, free = null;
     snap.docs.forEach(d => {
       const docIsShipping = /ship|deliver|freight/i.test(d.id);
       Object.entries(d.data()).forEach(([k, v]) => {
-        if (v === "" || v === null || typeof v === "boolean") return;
+        if (typeof v !== "number" && typeof v !== "string") return;      // skips Timestamps, objects, arrays, booleans
+        if (typeof v === "string" && v.trim() === "") return;
+        if (/time|date|updated|created|phone|mobile|contact|id$/i.test(k)) return; // skips non-price fields
         const n = Number(v);
         if (!Number.isFinite(n) || n < 0) return;
         if (!docIsShipping && !/ship|deliver|freight/i.test(k)) return;
-        if (/free|above|min|limit|threshold|over/i.test(k)) { if (free === null) free = n; }
-        else if (fee === null) fee = n;
+        if (/free|above|min|limit|threshold|over/i.test(k)) { if (free === null && n <= MAX_FREE_LIMIT) free = n; }
+        else if (fee === null && n <= MAX_SHIPPING_FEE) fee = n;
       });
     });
     if (fee !== null) SHIPPING_FEE = fee;
     if (free !== null) FREE_SHIPPING_ABOVE = free;
   } catch (e) { console.warn("Using default shipping settings", e); }
+  // last safety net
+  if (!Number.isFinite(SHIPPING_FEE) || SHIPPING_FEE < 0 || SHIPPING_FEE > MAX_SHIPPING_FEE) SHIPPING_FEE = DEFAULT_SHIPPING_FEE;
+  if (!Number.isFinite(FREE_SHIPPING_ABOVE) || FREE_SHIPPING_ABOVE < 0 || FREE_SHIPPING_ABOVE > MAX_FREE_LIMIT) FREE_SHIPPING_ABOVE = DEFAULT_FREE_SHIPPING_ABOVE;
 }
 
 /* ---------- load data ---------- */
