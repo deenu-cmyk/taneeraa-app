@@ -12,6 +12,11 @@
 // Printing uses the browser's native window.print() against a
 // dedicated hidden print container, styled with @media print
 // rules also added to admin.html / index.html.
+//
+// What's on the invoice:
+//   - customer details, SHIPPING ADDRESS, order details
+//   - every product with its PICTURE (so customer and admin can identify the item)
+//   - subtotal, discount, SHIPPING charge and total (the amounts always add up)
 // ============================================================
 
 const BUSINESS = {
@@ -31,6 +36,19 @@ function fmtDateTime(ts) {
   const d = ts.toDate ? ts.toDate() : new Date(ts);
   if (isNaN(d.getTime())) return "—";
   return d.toLocaleString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+}
+
+// Small grey box with the first letter, shown when a product has no picture (or it fails to load)
+function placeholderBox(name, visible) {
+  const letter = esc(String(name || "?").trim().charAt(0).toUpperCase() || "?");
+  return `<div style="display:${visible ? "flex" : "none"};width:52px;height:52px;border-radius:8px;background:#F1EEE6;border:1px solid #E5E7EB;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#B08D57;box-sizing:border-box">${letter}</div>`;
+}
+
+function productThumb(item) {
+  const url = item.imageUrl ? String(item.imageUrl) : "";
+  if (!url) return placeholderBox(item.name, true);
+  return `<img src="${esc(url)}" alt="" style="display:block;width:52px;height:52px;object-fit:cover;border-radius:8px;border:1px solid #E5E7EB;box-sizing:border-box" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">` +
+         placeholderBox(item.name, false);
 }
 
 /**
@@ -53,7 +71,12 @@ export function buildInvoiceHTML(order) {
     const sub = price * qty;
     return `
       <tr>
-        <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:left">${esc(i.name)}</td>
+        <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:left">
+          <div style="display:flex;align-items:center;gap:12px">
+            ${productThumb(i)}
+            <div style="font-weight:600;line-height:1.35">${esc(i.name)}</div>
+          </div>
+        </td>
         <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:center">${qty}</td>
         <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:right">${money(price)}</td>
         <td style="padding:10px 8px;border-bottom:1px solid #E5E7EB;font-size:13px;color:#111827;text-align:right;font-weight:600">${money(sub)}</td>
@@ -63,6 +86,16 @@ export function buildInvoiceHTML(order) {
   const subtotal = order.subtotal !== undefined ? num(order.subtotal) : items.reduce((s, i) => s + num(i.price) * num(i.qty), 0);
   const discount = num(order.discount);
   const total = order.total !== undefined ? num(order.total) : Math.max(0, subtotal - discount);
+  // Shipping: use the saved amount; for older orders work it out so the amounts always add up
+  const shipping = order.shippingCost !== undefined && order.shippingCost !== null
+    ? num(order.shippingCost)
+    : Math.max(0, total - subtotal + discount);
+
+  // Shipping address block: receiver name, address lines, phone numbers
+  const receiver = String(order.receiverName || order.customerName || "").trim();
+  const addrLines = String(order.address || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (addrLines.length && receiver && addrLines[0].toLowerCase() === receiver.toLowerCase()) addrLines.shift(); // the name is already shown in bold
+  const addressHtml = addrLines.length ? addrLines.map(esc).join("<br>") : "—";
 
   return `
   <div style="width:100%;max-width:760px;margin:0 auto;background:#fff;font-family:Arial,Helvetica,sans-serif;color:#111827;box-sizing:border-box;padding:36px;">
@@ -81,23 +114,30 @@ export function buildInvoiceHTML(order) {
       </div>
     </div>
 
-    <!-- Customer + Order details -->
-    <div style="display:flex;gap:24px;margin-bottom:24px;flex-wrap:wrap">
-      <div style="flex:1;min-width:240px">
+    <!-- Customer + Shipping address + Order details -->
+    <div style="display:flex;gap:22px;margin-bottom:24px;flex-wrap:wrap">
+      <div style="flex:1;min-width:190px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#B08D57;margin-bottom:8px">Customer Details</div>
         <div style="font-size:13px;line-height:1.9">
           <div><strong>Name:</strong> ${esc(order.customerName || "—")}</div>
-          <div><strong>Address:</strong> ${esc(order.address || "—")}</div>
           <div><strong>Mobile:</strong> ${esc(order.customerPhone || "—")}</div>
-          <div><strong>Email:</strong> ${esc(order.customerEmail || "—")}</div>
+          <div style="overflow-wrap:anywhere"><strong>Email:</strong><br>${esc(order.customerEmail || "—")}</div>
         </div>
       </div>
-      <div style="flex:1;min-width:240px">
+      <div style="flex:1.2;min-width:210px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#B08D57;margin-bottom:8px">Shipping Address</div>
+        <div style="font-size:13px;line-height:1.7">
+          <div style="font-weight:700">${esc(receiver || "—")}</div>
+          <div>${addressHtml}</div>
+          <div style="margin-top:4px"><strong>Mobile:</strong> ${esc(order.customerPhone || "—")}${order.altPhone ? ` &nbsp;·&nbsp; <strong>Alt:</strong> ${esc(order.altPhone)}` : ""}</div>
+        </div>
+      </div>
+      <div style="flex:1;min-width:190px">
         <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#B08D57;margin-bottom:8px">Order Details</div>
         <div style="font-size:13px;line-height:1.9">
           <div><strong>Order ID:</strong> ${esc(order.orderNumber || order.id || "—")}</div>
           <div><strong>Order Date:</strong> ${esc(fmtDateTime(order.createdAt))}</div>
-          <div><strong>UTR / Transaction Ref:</strong> ${esc(order.utr || "—")}</div>
+          <div style="overflow-wrap:anywhere"><strong>UTR / Transaction Ref:</strong><br>${esc(order.utr || "—")}</div>
         </div>
       </div>
     </div>
@@ -118,9 +158,10 @@ export function buildInvoiceHTML(order) {
 
     <!-- Totals -->
     <div style="display:flex;justify-content:flex-end;margin-bottom:24px">
-      <div style="width:260px;max-width:100%">
+      <div style="width:280px;max-width:100%">
         <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:#6B7280">Subtotal</span><span>${money(subtotal)}</span></div>
-        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:#6B7280">Discount</span><span style="color:#B08D57">- ${money(discount)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:#6B7280">Discount${order.couponCode ? ` (${esc(order.couponCode)})` : ""}</span><span style="color:#B08D57">- ${money(discount)}</span></div>
+        <div style="display:flex;justify-content:space-between;padding:6px 0;font-size:13px"><span style="color:#6B7280">Shipping</span><span>${shipping > 0 ? money(shipping) : "FREE"}</span></div>
         <div style="display:flex;justify-content:space-between;padding:10px 0;margin-top:4px;border-top:2px solid #3F4A38;font-size:16px;font-weight:700"><span>Total</span><span>${money(total)}</span></div>
       </div>
     </div>
@@ -145,13 +186,24 @@ export function invoiceFilename(order) {
   return `Taneeraa-Invoice-${safe}.pdf`;
 }
 
+// Waits until every picture inside `root` has loaded (or failed), but never longer than `maxMs`,
+// so the printed / downloaded invoice never misses its product photos.
+function waitForImages(root, maxMs = 6000) {
+  const imgs = Array.from(root.querySelectorAll("img"));
+  const loaded = Promise.all(imgs.map((img) =>
+    img.complete ? Promise.resolve() : new Promise((resolve) => { img.addEventListener("load", resolve); img.addEventListener("error", resolve); })
+  ));
+  const timeout = new Promise((resolve) => setTimeout(resolve, maxMs));
+  return Promise.race([loaded, timeout]);
+}
+
 /**
  * Prints the invoice using a dedicated hidden print container plus
  * @media print rules (added in admin.html / index.html) that hide
  * everything else on the page — no website header/nav/buttons show
  * up in the printed output, just the invoice itself.
  */
-export function printInvoice(order) {
+export async function printInvoice(order) {
   let area = document.getElementById("invoicePrintArea");
   if (!area) {
     area = document.createElement("div");
@@ -159,6 +211,7 @@ export function printInvoice(order) {
     document.body.appendChild(area);
   }
   area.innerHTML = buildInvoiceHTML(order);
+  await waitForImages(area); // product photos must be ready before the print dialog opens
   document.body.classList.add("printing-invoice");
   const cleanup = () => {
     document.body.classList.remove("printing-invoice");
@@ -190,6 +243,7 @@ export async function downloadInvoicePDF(order) {
   document.body.appendChild(holder);
 
   try {
+    await waitForImages(holder); // product photos must be loaded before the snapshot is taken
     const canvas = await window.html2canvas(holder, { scale: 2, useCORS: true, backgroundColor: "#ffffff" });
     const imgData = canvas.toDataURL("image/png");
     const { jsPDF } = window.jspdf;
