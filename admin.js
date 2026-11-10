@@ -8,7 +8,7 @@ import {
   collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot,
   query, orderBy, serverTimestamp, Timestamp, arrayUnion, runTransaction, getDoc, setDoc
 } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-firestore.js";
-import { buildInvoiceHTML, downloadInvoicePDF, printInvoice } from "./invoice.js";
+import { buildInvoiceHTML, downloadInvoicePDF, printInvoice } from "./invoice.js?v=3";
 import { initRazorpayAdmin } from "./razorpay-admin.js";
 import { initCategoryAdmin, getCategoryNames } from "./categories-admin.js";
 
