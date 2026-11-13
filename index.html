@@ -156,7 +156,8 @@
 
   /* ===== Offers ===== */
   .offer-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
-  @media(min-width:768px){.offer-grid{grid-template-columns:repeat(4,1fr)}}
+  @media(min-width:768px){.offer-grid{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:767px){.offer-card:last-child:nth-child(odd){grid-column:1/-1}}
   .offer-card{border-radius:4px;padding:28px 22px;color:var(--bg);position:relative;overflow:hidden;animation:pulseIn .6s ease both;cursor:pointer;transition:transform .2s ease, box-shadow .2s ease;text-align:left;border:none;font-family:inherit;display:block;width:100%}
   .offer-card:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(74,43,56,.2)}
   .offer-card:focus-visible{outline:2px solid var(--bg);outline-offset:3px}
@@ -581,6 +582,16 @@ footer{background:var(--forest)}
 .hero-offer span{color:#A8645C;font-weight:600}
 .strip-card{border:2px solid #fff;background:#fff;box-shadow:0 10px 24px rgba(120,60,70,.14)}
 .strip-card:hover{border-color:var(--gold)}
+
+/* ---------- Offer cards: richer colours ---------- */
+.offer-card:nth-child(1){background:linear-gradient(135deg,#E3968C 0%,#B0606C 100%)}
+.offer-card:nth-child(2){background:linear-gradient(135deg,#6B2D4F 0%,#A64F7B 100%)}
+.offer-card:nth-child(3){background:linear-gradient(135deg,#C07A45 0%,#8F432C 100%)}
+.offer-card{color:#fff}
+.offer-card::before{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.28),rgba(255,255,255,0) 70%);pointer-events:none}
+.offer-card h4{text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.offer-card p{opacity:.95}
+.offer-card .code{background:rgba(255,255,255,.22);border:1px dashed rgba(255,255,255,.65);letter-spacing:.12em}
 </style>
 </head>
 <body>
@@ -607,7 +618,7 @@ footer{background:var(--forest)}
 </svg>
 
 <!-- ===================== ANNOUNCEMENT BAR ===================== -->
-<div class="announce">✨ Free shipping above <b>₹999</b> &nbsp;·&nbsp; Use code <b>HANDMADE10</b> for 10% off your first order</div>
+<div class="announce">✨ Free shipping above <b>₹999</b> &nbsp;·&nbsp; Use code <b>FEST</b> for 10% off your first order</div>
 
 <!-- ===================== HEADER ===================== -->
 <header>
@@ -685,7 +696,7 @@ footer{background:var(--forest)}
       <div class="hero-offer">
         <small>TODAY'S OFFER</small>
         <strong>Extra 10% off</strong>
-        <span>Code: HANDMADE10</span>
+        <span>Code: FEST</span>
       </div>
     </div>
   </div>
@@ -730,10 +741,6 @@ footer{background:var(--forest)}
       <h2 class="section-title">Today's Special Offers</h2>
     </div>
     <div class="offer-grid">
-      <button type="button" class="offer-card" onclick="goToOffer('buy2get1')" aria-label="Buy 2 Get 1 Free — view offer details">
-        <h4>🎁 Buy 2 Get 1 Free</h4>
-        <p>On all handmade jewelry &amp; accessories</p>
-      </button>
       <button type="button" class="offer-card" onclick="goToOffer('free-shipping')" aria-label="Free Shipping — view offer details">
         <h4>🚚 Free Shipping</h4>
         <p>On all orders above ₹999</p>
@@ -741,7 +748,7 @@ footer{background:var(--forest)}
       <button type="button" class="offer-card" onclick="goToOffer('extra10')" aria-label="Extra 10% Off — view offer details and coupon code">
         <h4>💸 Extra 10% Off</h4>
         <p>On your first order with us</p>
-        <span class="code">Code: HANDMADE10</span>
+        <span class="code">Code: FEST</span>
       </button>
       <button type="button" class="offer-card" onclick="goToOffer('member-rewards')" aria-label="Member Rewards — view details">
         <h4>⭐ Member Rewards</h4>
@@ -1620,18 +1627,12 @@ footer{background:var(--forest)}
   window.closeWishlistModal = function closeWishlistModal() { document.getElementById('wishlistOverlay').classList.remove('open'); };
 
   /* ============ TODAY'S SPECIAL OFFERS — hash-routed detail view ============
-     Route slugs (in the URL, e.g. #offer/buy2get1) map to this content.
+     Route slugs (in the URL, e.g. #offer/extra10) map to this content.
      Clicking a card navigates to a real, addressable route — browser
      Back/Forward and reload-to-same-offer both work via hashchange,
      not just a scroll or a modal popup.
   ================================================================= */
   const OFFER_CONTENT = {
-    buy2get1: {
-      icon: '🎁',
-      title: 'Buy 2 Get 1 Free',
-      desc: 'Buy any 2 eligible handmade jewelry or accessories and receive 1 eligible item free.',
-      note: 'Eligibility depends on the products marked as eligible for this offer. The discount is not applied automatically — it follows however the existing cart/coupon system on this site already supports it.',
-    },
     'free-shipping': {
       icon: '🚚',
       title: 'Free Shipping',
@@ -1642,7 +1643,7 @@ footer{background:var(--forest)}
       icon: '💸',
       title: 'Extra 10% Off',
       desc: 'Get an additional 10% off your first order.',
-      coupon: 'HANDMADE10',
+      coupon: 'FEST',
     },
     'member-rewards': {
       icon: '⭐',
@@ -1680,7 +1681,7 @@ footer{background:var(--forest)}
   window.copyOfferCode = function copyOfferCode() {
     const btn = document.getElementById('copyOfferCodeBtn');
     const msg = document.getElementById('offerCopyMsg');
-    navigator.clipboard.writeText('HANDMADE10')
+    navigator.clipboard.writeText('FEST')
       .then(() => {
         if (btn) {
           const original = btn.textContent;
@@ -1689,7 +1690,7 @@ footer{background:var(--forest)}
         }
         if (msg) msg.textContent = 'Copied!';
       })
-      .catch(() => { if (msg) msg.textContent = 'Could not copy — copy it manually: HANDMADE10'; });
+      .catch(() => { if (msg) msg.textContent = 'Could not copy — copy it manually: FEST'; });
   };
 
   window.scrollToProducts = function scrollToProducts() {
