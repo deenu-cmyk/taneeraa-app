@@ -84,6 +84,11 @@
 
   var style = document.createElement('style'); style.textContent = css; document.head.appendChild(style);
   var sec = document.createElement('section'); sec.className = 'hs'; sec.id = 'heroSlider'; sec.innerHTML = html;
+  // Jar slide shows first
+  var tr = sec.querySelector('#hsTrack');
+  tr.insertBefore(tr.querySelector('.s2'), tr.querySelector('.s1'));
+  tr.querySelector('.s2').setAttribute('aria-label', 'Slide 1 of 2');
+  tr.querySelector('.s1').setAttribute('aria-label', 'Slide 2 of 2');
   var home = document.getElementById('home');
   home.parentNode.insertBefore(sec, home);   // slider sits above the existing hero
 
